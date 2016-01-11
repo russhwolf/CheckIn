@@ -32,7 +32,7 @@ public class CheckInApplication extends Application {
                     .addInterceptor(new HttpLoggingInterceptor(logger).setLevel(HttpLoggingInterceptor.Level.BODY))
                     .build();
             slackApi = new Retrofit.Builder()
-                    .baseUrl("https://hooks.slack.com/services/")
+                    .baseUrl(SlackApi.BASE_URL)
                     .addConverterFactory(GsonConverterFactory.create())
                     .client(client)
                     .build()

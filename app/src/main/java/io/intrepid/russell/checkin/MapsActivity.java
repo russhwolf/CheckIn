@@ -5,6 +5,7 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.widget.Button;
@@ -17,6 +18,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import butterknife.Bind;
@@ -32,6 +34,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap map;
 
     private GoogleApiClient googleApiClient;
+
+    private Marker currentLocation;
 
     @Bind(R.id.button)
     Button button;
@@ -106,14 +110,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         map.moveCamera(CameraUpdateFactory.zoomTo(16));
     }
 
-    private void logLocation() {
+    @Nullable
+    private Location getLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION);
-            return;
+            return null;
         }
-        Location location = LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
+        return LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
+    }
+
+    private void logLocation() {
+        Location location = getLocation();
         if (location != null) {
             Timber.i("Location (%1.6f, %1.6f)", location.getLongitude(), location.getLatitude());
         } else {
@@ -123,11 +132,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @OnClick(R.id.button)
     public void clickButton() {
-
+        logLocation();
+        Location location = getLocation();
+        if (location != null) {
+            double lng = location.getLongitude();
+            double lat = location.getLatitude();
+            LatLng latLng = new LatLng(lat, lng);
+            if (map != null) {
+                if (currentLocation != null) {
+                    currentLocation.remove();
+                }
+                currentLocation = map.addMarker(new MarkerOptions().position(latLng).title("Current location"));
+            }
+        }
     }
 
     private void postMessageToSlack(String message) {
-        CheckInApplication.getApi().postCheckIn(new SlackApi.MessageRequest(message)).enqueue(new Callback<Void>() {
+        CheckInApplication.getApi().postCheckIn(new SlackApi.TextRequest(message)).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Response<Void> response) {
                 Timber.d("Slack post returned %d %s", response.code(), response.message());
