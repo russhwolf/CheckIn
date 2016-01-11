@@ -1,6 +1,7 @@
 package io.intrepid.russell.checkin;
 
 import android.Manifest;
+import android.app.PendingIntent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
@@ -11,6 +12,10 @@ import android.widget.Button;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.Geofence;
+import com.google.android.gms.location.GeofencingRequest;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
@@ -32,6 +37,15 @@ import timber.log.Timber;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
     private static final int REQUEST_LOCATION = 1;
     private static final int REQUEST_LOCATION_UPDATES = 2;
+
+    private static final String GEOFENCE_THIRD_ST = "Third_St.";
+    private static final String GEOFENCE_ROGERS_ST = "Rogers_St.";
+    private static final double LAT_THIRD_ST = 42.367023; // deg
+    private static final double LNG_THIRD_ST = -71.080052; // deg
+    private static final double LAT_ROGERS_ST = 42.366403; // deg
+    private static final double LNG_ROGERS_ST = -71.077766; // deg
+
+    private static final int GEOFENCE_RADIUS = 5; // meters
 
     private GoogleMap map;
 
@@ -80,7 +94,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onConnected(Bundle bundle) {
         logLocation(getLocation());
-        requestLocationUpdates();
+//        requestLocationUpdates();
+        requestGeofencing();
     }
 
     private void requestLocationUpdates() {
@@ -90,7 +105,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             return;
         }
         LocationServices.FusedLocationApi.requestLocationUpdates(
-                googleApiClient, createLocationRequest(), this);
+                googleApiClient,
+                new LocationRequest()
+                        .setInterval(1000)
+                        .setFastestInterval(1000)
+                        .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY),
+                this);
+    }
+
+    private void requestGeofencing() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION_UPDATES);
+            return;
+        }
+        LocationServices.GeofencingApi.addGeofences(
+                googleApiClient,
+                getGeofencingRequest(),
+                PendingIntent.getActivity(
+                        this,
+                        0,
+                        ShowNotificationService.createNotificationIntent(this, "Ping!"),
+                        0)
+        ).setResultCallback(new ResultCallback<Status>() {
+            @Override
+            public void onResult(@NonNull Status status) {
+                Timber.d("addGeofences() result: success=" + status.isSuccess());
+            }
+        });
     }
 
     @Override
@@ -131,9 +173,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         map = googleMap;
 
         // Add a marker in Sydney and move the camera
-        LatLng thirdSt = new LatLng(42.367023, -71.080052);
+        LatLng thirdSt = new LatLng(LAT_THIRD_ST, LNG_THIRD_ST);
         map.addMarker(new MarkerOptions().position(thirdSt).title("Third St."));
-        LatLng rogersSt = new LatLng(42.366399, -71.077689);
+        LatLng rogersSt = new LatLng(LAT_ROGERS_ST, LNG_ROGERS_ST);
         map.addMarker(new MarkerOptions().position(rogersSt).title("Rogers St."));
         map.moveCamera(CameraUpdateFactory.newLatLng(thirdSt));
         map.moveCamera(CameraUpdateFactory.zoomTo(16));
@@ -149,20 +191,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
     }
 
-    protected LocationRequest createLocationRequest() {
-        LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setInterval(1000);
-        locationRequest.setFastestInterval(1000);
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        return locationRequest;
-    }
-
     private void logLocation(Location location) {
         if (location != null) {
             Timber.i("Location (%1.6f, %1.6f)", location.getLongitude(), location.getLatitude());
         } else {
             Timber.i("Null location");
         }
+    }
+
+    private GeofencingRequest getGeofencingRequest() {
+        return new GeofencingRequest.Builder()
+                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                .addGeofence(new Geofence.Builder()
+                        .setRequestId(GEOFENCE_THIRD_ST)
+                        .setCircularRegion(LAT_THIRD_ST, LNG_THIRD_ST, GEOFENCE_RADIUS)
+                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+                        .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                        .build())
+                .addGeofence(new Geofence.Builder()
+                        .setRequestId(GEOFENCE_ROGERS_ST)
+                        .setCircularRegion(LAT_ROGERS_ST, LNG_ROGERS_ST, GEOFENCE_RADIUS)
+                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+                        .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                        .build())
+                .build();
     }
 
     @OnClick(R.id.button)
