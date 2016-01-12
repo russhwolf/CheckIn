@@ -36,15 +36,31 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (ACTION_PING_REQUEST.equals(intent.getAction())) {
-                Timber.d("Ping request received");
-                LocalBroadcastManager.getInstance(CheckInService.this).sendBroadcast(new Intent(ACTION_PING_RESPONSE));
+            switch (intent.getAction()) {
+                case ACTION_PING_REQUEST:
+                    Timber.d("Ping request received");
+                    LocalBroadcastManager.getInstance(CheckInService.this).sendBroadcast(new Intent(ACTION_PING_RESPONSE));
+                    break;
+                case ACTION_PERMISSION_RESULT:
+                    int requestCode = intent.getIntExtra(EXTRA_PERMISSION_REQUEST_CODE, -1);
+                    switch (requestCode) {
+                        case MapsActivity.REQUEST_LOCATION_UPDATES:
+                            requestLocationUpdates();
+                            break;
+                        case MapsActivity.REQUEST_GEOFENCING:
+                            requestGeofencing();
+                            break;
+                    }
+                    break;
             }
         }
     };
 
     public static final String ACTION_PING_REQUEST = "checkin_service_ping_request";
     public static final String ACTION_PING_RESPONSE = "checkin_service_ping_response";
+
+    public static final String ACTION_PERMISSION_RESULT = "checkin_service_permission_result";
+    public static final String EXTRA_PERMISSION_REQUEST_CODE = "checkin_service_permission_request_code";
 
     private static final int LOITERING_DELAY = 5000;
 
@@ -55,7 +71,10 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
 
     @Override
     public void onCreate() {
-        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, new IntentFilter(ACTION_PING_REQUEST));
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ACTION_PING_REQUEST);
+        filter.addAction(ACTION_PERMISSION_RESULT);
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, filter);
 
         notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
@@ -101,8 +120,8 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
     private void requestLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-//                    Manifest.permission.ACCESS_COARSE_LOCATION}, Utils.REQUEST_LOCATION_UPDATES);
+            requestPermission(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, MapsActivity.REQUEST_LOCATION_UPDATES);
             return;
         }
         LocationServices.FusedLocationApi.requestLocationUpdates(
@@ -117,8 +136,8 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
     private void requestGeofencing() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-//                    Manifest.permission.ACCESS_COARSE_LOCATION}, Utils.REQUEST_LOCATION_UPDATES);
+            requestPermission(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, MapsActivity.REQUEST_GEOFENCING);
             return;
         }
         LocationServices.GeofencingApi.addGeofences(
@@ -205,5 +224,13 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
 
         // Send the notification.
         notificationManager.notify(NOTIFICATION_ID, notification);
+    }
+
+    private void requestPermission(String[] names, int requestCode) {
+        LocalBroadcastManager.getInstance(this).sendBroadcast(
+                new Intent(MapsActivity.ACTION_REQUEST_PERMISSION)
+                        .putExtra(MapsActivity.EXTRA_PERMISSION_NAMES, names)
+                        .putExtra(MapsActivity.EXTRA_PERMISSION_REQUEST_CODE, requestCode)
+        );
     }
 }
