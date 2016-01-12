@@ -16,8 +16,8 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.NotificationCompat;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -203,26 +203,22 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
      * Show a notification while this service is running.
      */
     private void showNotification() {
-        // In this sample, we'll use the same text for the ticker and the expanded notification
         CharSequence text = getString(R.string.service_running);
 
         // The PendingIntent to launch our activity if the user selects this notification
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
                 new Intent(this, MapsActivity.class), 0);
 
-        // Set the info for the views that show in the notification panel.
         Notification notification = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.mipmap.ic_launcher)  // the status icon
-                .setTicker(text)  // the status text
-                .setWhen(System.currentTimeMillis())  // the time stamp
-                .setContentTitle(getText(R.string.app_name))  // the label of the entry
-                .setContentText(text)  // the contents of the entry
-                .setContentIntent(contentIntent)  // The intent to send when the entry is clicked
-                .addAction(R.mipmap.ic_launcher, "Action", contentIntent)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setTicker(text)
+                .setWhen(System.currentTimeMillis())
+                .setContentTitle(getText(R.string.app_name))
+                .setContentText(text)
+                .setContentIntent(contentIntent)
                 .build();
         notification.flags |= NotificationCompat.FLAG_NO_CLEAR;
 
-        // Send the notification.
         notificationManager.notify(NOTIFICATION_ID, notification);
     }
 

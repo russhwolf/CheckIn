@@ -14,10 +14,6 @@ import retrofit2.Callback;
 import retrofit2.Response;
 import timber.log.Timber;
 
-/**
- * An {@link IntentService} subclass for handling asynchronous task requests in
- * a service on a separate handler thread.
- */
 public class ShowNotificationService extends IntentService {
     private static final String TAG = ShowNotificationService.class.getSimpleName();
 
@@ -68,16 +64,14 @@ public class ShowNotificationService extends IntentService {
     private void showNotification(String text, int id) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        // Set the info for the views that show in the notification panel.
         Notification notification = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.mipmap.ic_launcher)  // the status icon
-                .setTicker(text)  // the status text
-                .setWhen(System.currentTimeMillis())  // the time stamp
-                .setContentTitle(getText(R.string.app_name))  // the label of the entry
-                .setContentText(text)  // the contents of the entry
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setTicker(text)
+                .setWhen(System.currentTimeMillis())
+                .setContentTitle(getText(R.string.app_name))
+                .setContentText(text)
                 .build();
 
-        // Send the notification.
         notificationManager.notify(id, notification);
     }
 
