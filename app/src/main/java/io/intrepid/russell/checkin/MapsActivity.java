@@ -71,7 +71,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .build();
-
     }
 
     @Override
@@ -90,13 +89,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onConnected(Bundle bundle) {
-        logLocation(getLocation());
+//        logLocation(getLocation());
 //        requestLocationUpdates();
         requestGeofencing();
     }
 
     private void requestLocationUpdates() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION_UPDATES);
             return;
@@ -119,10 +119,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LocationServices.GeofencingApi.addGeofences(
                 googleApiClient,
                 getGeofencingRequest(),
-                PendingIntent.getActivity(
+                PendingIntent.getService(
                         this,
                         0,
-                        ShowNotificationService.createNotificationIntent(this, "Ping!"),
+                        ShowNotificationService.createGeofenceIntent(this),
                         0)
         ).setResultCallback(new ResultCallback<Status>() {
             @Override
@@ -181,9 +181,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void logLocation(Location location) {
         if (location != null) {
-            Timber.i("Location (%1.6f, %1.6f)", location.getLongitude(), location.getLatitude());
+            Timber.v("Location (%1.6f, %1.6f), precision %f", location.getLongitude(), location.getLatitude(), location.getAccuracy());
         } else {
-            Timber.i("Null location");
+            Timber.v("Null location");
         }
     }
 
@@ -200,18 +200,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GeofencingRequest getGeofencingRequest() {
         return new GeofencingRequest.Builder()
-                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL | GeofencingRequest.INITIAL_TRIGGER_ENTER)
                 .addGeofence(new Geofence.Builder()
                         .setRequestId(GEOFENCE_THIRD_ST)
                         .setCircularRegion(LAT_THIRD_ST, LNG_THIRD_ST, GEOFENCE_RADIUS)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
                         .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                        .setLoiteringDelay(5000)
                         .build())
                 .addGeofence(new Geofence.Builder()
                         .setRequestId(GEOFENCE_ROGERS_ST)
                         .setCircularRegion(LAT_ROGERS_ST, LNG_ROGERS_ST, GEOFENCE_RADIUS)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
                         .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                        .setLoiteringDelay(5000)
                         .build())
                 .build();
     }
