@@ -34,10 +34,6 @@ public class ShowNotificationService extends IntentService {
         context.startService(createNotificationIntent(context, text));
     }
 
-    public static void showGeofenceNotification(Context context, Intent intent) {
-
-    }
-
     public static Intent createNotificationIntent(Context context, String text) {
         return new Intent(context, ShowNotificationService.class)
                 .setAction(ACTION_MESSAGE)
@@ -70,7 +66,6 @@ public class ShowNotificationService extends IntentService {
     }
 
     private void showNotification(String text, int id) {
-        Timber.d("Showing notification: %s", text);
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         // Set the info for the views that show in the notification panel.
@@ -87,27 +82,17 @@ public class ShowNotificationService extends IntentService {
     }
 
     private void processGeofencingEvent(GeofencingEvent event) {
-        Timber.i("Processing geofencing event");
-        Timber.d("  Triggering fences (length=%d)", event.getTriggeringGeofences().size());
-        for (int i = 0; i < event.getTriggeringGeofences().size(); i++) {
-            Timber.d("    id=%s, fence=%s", event.getTriggeringGeofences().get(i).getRequestId(), event.getTriggeringGeofences().get(i));
-        }
-        Timber.d("  Transition=%d", event.getGeofenceTransition());
-        Timber.d("  Error code=%d", event.getErrorCode());
-        Timber.d("  Location=(%f,%f); precision=%f", event.getTriggeringLocation().getLongitude(), event.getTriggeringLocation().getLatitude(), event.getTriggeringLocation().getAccuracy());
-
         if (event.getTriggeringGeofences().size() > 0) { // TODO Is this size ever not 1? Why?
             Geofence fence = event.getTriggeringGeofences().get(0);
-            int transition = event.getGeofenceTransition();
-            switch (transition) {
+            switch (event.getGeofenceTransition()) {
                 case Geofence.GEOFENCE_TRANSITION_ENTER:
-                    showNotification("Entered " + fence.getRequestId(), transition);
+                    showNotification("Entered " + fence.getRequestId(), R.id.notification_enter);
                     break;
                 case Geofence.GEOFENCE_TRANSITION_EXIT:
-                    showNotification("Exited " + fence.getRequestId(), transition);
+                    showNotification("Exited " + fence.getRequestId(), R.id.notification_exit);
                     break;
                 case Geofence.GEOFENCE_TRANSITION_DWELL:
-                    showNotification("Dwelling at " + fence.getRequestId(), transition);
+                    showNotification("Dwelling at " + fence.getRequestId(), R.id.notification_dwell);
                     break;
             }
         }

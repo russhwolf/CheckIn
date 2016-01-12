@@ -1,9 +1,14 @@
 <resources>
-    <string name="app_name">Check In</string>
+    <string name="app_name">Check-in</string>
     <string name="title_activity_maps">Map</string>
 
     <string name="google_app_id">@string/google_maps_key</string>
 
     <string name="label_third">Third St.</string>
     <string name="label_rogers">Rogers St.</string>
+
+    <string name="service_toggle_on">Check-in service activated</string>
+    <string name="service_toggle_off">Check-in service deactivated</string>
+
+    <string name="service_running">Check-in Service running</string>
 </resources>

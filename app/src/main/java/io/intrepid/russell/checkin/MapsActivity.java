@@ -1,24 +1,19 @@
 package io.intrepid.russell.checkin;
 
 import android.Manifest;
-import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
-import android.widget.Button;
+import android.support.v4.content.LocalBroadcastManager;
+import android.widget.Switch;
+import android.widget.TextView;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.Status;
-import com.google.android.gms.location.Geofence;
-import com.google.android.gms.location.GeofencingRequest;
-import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -27,21 +22,28 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
-import butterknife.OnClick;
+import butterknife.OnCheckedChanged;
 import timber.log.Timber;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
-    private static final int REQUEST_LOCATION = 1;
-    private static final int REQUEST_LOCATION_UPDATES = 2;
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
-    private static final int LOITERING_DELAY = 5000;
+    private final BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (CheckInService.ACTION_PING_RESPONSE.equals(intent.getAction())) {
+                Timber.d("Ping response received");
+                toggle.setChecked(true);
+            }
+        }
+    };
 
     private GoogleMap map;
 
-    private GoogleApiClient googleApiClient;
+    @Bind(R.id.toggle)
+    Switch toggle;
 
-    @Bind(R.id.button)
-    Button button;
+    @Bind(R.id.text)
+    TextView text;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,92 +51,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_maps);
         ButterKnife.bind(this);
 
-//        startService(new Intent(this, CheckInService.class));
-
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        googleApiClient = new GoogleApiClient.Builder(this)
-                .addApi(LocationServices.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .build();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        googleApiClient.connect();
+        LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(this);
+        broadcastManager.registerReceiver(receiver, new IntentFilter(CheckInService.ACTION_PING_RESPONSE));
+        broadcastManager.sendBroadcast(new Intent(CheckInService.ACTION_PING_REQUEST));
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (googleApiClient.isConnected()) {
-            googleApiClient.disconnect();
-        }
-    }
-
-    @Override
-    public void onConnected(Bundle bundle) {
-//        logLocation(getLocation());
-//        requestLocationUpdates();
-        requestGeofencing();
-    }
-
-    private void requestLocationUpdates() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION_UPDATES);
-            return;
-        }
-        LocationServices.FusedLocationApi.requestLocationUpdates(
-                googleApiClient,
-                new LocationRequest()
-                        .setInterval(1000)
-                        .setFastestInterval(1000)
-                        .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY),
-                this);
-    }
-
-    private void requestGeofencing() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION_UPDATES);
-            return;
-        }
-        LocationServices.GeofencingApi.addGeofences(
-                googleApiClient,
-                getGeofencingRequest(),
-                PendingIntent.getService(
-                        this,
-                        0,
-                        ShowNotificationService.createGeofenceIntent(this),
-                        0)
-        ).setResultCallback(new ResultCallback<Status>() {
-            @Override
-            public void onResult(@NonNull Status status) {
-                Timber.d("addGeofences(): success=" + status.isSuccess());
-            }
-        });
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-        logLocation(location);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
     }
 
     /**
@@ -155,23 +90,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         map.addMarker(new MarkerOptions().position(LocationData.ROGERS_ST.latLng).title(LocationData.ROGERS_ST.getLabel(getResources())));
         map.moveCamera(CameraUpdateFactory.newLatLng(LocationData.THIRD_ST.latLng));
         map.moveCamera(CameraUpdateFactory.zoomTo(16));
+        showMyLocation(true);
     }
 
-    private Location getLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION);
-            return null;
-        }
-        return LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
-    }
-
-    private void logLocation(Location location) {
-        if (location != null) {
-            Timber.v("Location (%1.6f, %1.6f), precision %f", location.getLongitude(), location.getLatitude(), location.getAccuracy());
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == Utils.REQUEST_LOCATION)
+            if (grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                showMyLocation(true);
         } else {
-            Timber.v("Null location");
+                showMyLocation(false);
         }
     }
 
@@ -180,38 +108,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION);
-            return;
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, Utils.REQUEST_LOCATION);
         }
         map.setMyLocationEnabled(enabled);
     }
 
-    private GeofencingRequest getGeofencingRequest() {
-        return new GeofencingRequest.Builder()
-                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL | GeofencingRequest.INITIAL_TRIGGER_ENTER)
-                .addGeofence(new Geofence.Builder()
-                        .setRequestId(LocationData.THIRD_ST.id)
-                        .setCircularRegion(LocationData.THIRD_ST.lat, LocationData.THIRD_ST.lng, LocationData.GEOFENCE_RADIUS)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
-                        .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                        .setLoiteringDelay(LOITERING_DELAY)
-                        .build())
-                .addGeofence(new Geofence.Builder()
-                        .setRequestId(LocationData.ROGERS_ST.id)
-                        .setCircularRegion(LocationData.ROGERS_ST.lat, LocationData.ROGERS_ST.lng, LocationData.GEOFENCE_RADIUS)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
-                        .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                        .setLoiteringDelay(LOITERING_DELAY)
-                        .build())
-                .build();
-    }
-
-    @OnClick(R.id.button)
-    public void clickButton() {
-        Location location = getLocation();
-        logLocation(location);
-        if (map != null) {
-            showMyLocation(!map.isMyLocationEnabled());
+    @OnCheckedChanged(R.id.toggle)
+    void toggleService(boolean checked) {
+        if (checked) {
+            text.setText(R.string.service_toggle_on);
+            startService(new Intent(this, CheckInService.class));
+        } else {
+            text.setText(R.string.service_toggle_off);
+            stopService(new Intent(this, CheckInService.class));
         }
     }
 }
