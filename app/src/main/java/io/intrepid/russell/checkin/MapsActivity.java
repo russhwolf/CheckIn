@@ -24,7 +24,6 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import butterknife.Bind;
@@ -45,13 +44,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final double LAT_ROGERS_ST = 42.366403; // deg
     private static final double LNG_ROGERS_ST = -71.077766; // deg
 
-    private static final int GEOFENCE_RADIUS = 5; // meters
+    private static final int GEOFENCE_RADIUS = 50; // meters
 
     private GoogleMap map;
 
     private GoogleApiClient googleApiClient;
-
-    private Marker currentLocationMarker;
 
     @Bind(R.id.button)
     Button button;
@@ -130,7 +127,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ).setResultCallback(new ResultCallback<Status>() {
             @Override
             public void onResult(@NonNull Status status) {
-                Timber.d("addGeofences() result: success=" + status.isSuccess());
+                Timber.d("addGeofences(): success=" + status.isSuccess());
             }
         });
     }
@@ -148,22 +145,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onLocationChanged(Location location) {
         logLocation(location);
-        double lng = location.getLongitude();
-        double lat = location.getLatitude();
-        LatLng latLng = new LatLng(lat, lng);
-        if (map != null) {
-            if (currentLocationMarker != null) {
-                currentLocationMarker.remove();
-            }
-            currentLocationMarker = map.addMarker(new MarkerOptions().position(latLng).title("Current location"));
-        }
     }
 
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
+     * This is where we can add markers or lines, add listeners or move the camera.
+     *
      * If Google Play services is not installed on the device, the user will be prompted to install
      * it inside the SupportMapFragment. This method will only be triggered once the user has
      * installed Google Play services and returned to the app.
@@ -199,6 +187,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    private void showMyLocation(boolean enabled) {
+        if (enabled
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_LOCATION);
+            return;
+        }
+        map.setMyLocationEnabled(enabled);
+    }
+
     private GeofencingRequest getGeofencingRequest() {
         return new GeofencingRequest.Builder()
                 .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
@@ -221,16 +220,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void clickButton() {
         Location location = getLocation();
         logLocation(location);
-        if (location != null) {
-            double lng = location.getLongitude();
-            double lat = location.getLatitude();
-            LatLng latLng = new LatLng(lat, lng);
-            if (map != null) {
-                if (currentLocationMarker != null) {
-                    currentLocationMarker.remove();
-                }
-                currentLocationMarker = map.addMarker(new MarkerOptions().position(latLng).title("Current location"));
-            }
+        if (map != null) {
+            showMyLocation(!map.isMyLocationEnabled());
         }
     }
 
