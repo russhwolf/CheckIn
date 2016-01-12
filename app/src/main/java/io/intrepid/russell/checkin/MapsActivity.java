@@ -29,8 +29,6 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
-import retrofit2.Callback;
-import retrofit2.Response;
 import timber.log.Timber;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
@@ -225,19 +223,5 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (map != null) {
             showMyLocation(!map.isMyLocationEnabled());
         }
-    }
-
-    private static void postMessageToSlack(String message) {
-        CheckInApplication.getApi().postCheckIn(new SlackApi.TextRequest(message)).enqueue(new Callback<Void>() {
-            @Override
-            public void onResponse(Response<Void> response) {
-                Timber.d("Slack post returned %d %s", response.code(), response.message());
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-
-            }
-        });
     }
 }

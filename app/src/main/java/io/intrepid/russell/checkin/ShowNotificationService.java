@@ -7,8 +7,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.NotificationCompat;
 
+import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingEvent;
 
+import retrofit2.Callback;
+import retrofit2.Response;
 import timber.log.Timber;
 
 /**
@@ -63,6 +66,10 @@ public class ShowNotificationService extends IntentService {
     }
 
     private void showNotification(String text) {
+        showNotification(text, 0);
+    }
+
+    private void showNotification(String text, int id) {
         Timber.d("Showing notification: %s", text);
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
@@ -76,7 +83,7 @@ public class ShowNotificationService extends IntentService {
                 .build();
 
         // Send the notification.
-        notificationManager.notify(0, notification);
+        notificationManager.notify(id, notification);
     }
 
     private void processGeofencingEvent(GeofencingEvent event) {
@@ -87,7 +94,37 @@ public class ShowNotificationService extends IntentService {
         }
         Timber.d("  Transition=%d", event.getGeofenceTransition());
         Timber.d("  Error code=%d", event.getErrorCode());
-        Timber.d("  Location=(%f,%f)", event.getTriggeringLocation().getLongitude(), event.getTriggeringLocation().getLatitude());
+        Timber.d("  Location=(%f,%f); precision=%f", event.getTriggeringLocation().getLongitude(), event.getTriggeringLocation().getLatitude(), event.getTriggeringLocation().getAccuracy());
+
+        if (event.getTriggeringGeofences().size() > 0) { // TODO Is this size ever not 1? Why?
+            Geofence fence = event.getTriggeringGeofences().get(0);
+            int transition = event.getGeofenceTransition();
+            switch (transition) {
+                case Geofence.GEOFENCE_TRANSITION_ENTER:
+                    showNotification("Entered " + fence.getRequestId(), transition);
+                    break;
+                case Geofence.GEOFENCE_TRANSITION_EXIT:
+                    showNotification("Exited " + fence.getRequestId(), transition);
+                    break;
+                case Geofence.GEOFENCE_TRANSITION_DWELL:
+                    showNotification("Dwelling at " + fence.getRequestId(), transition);
+                    break;
+            }
+        }
+    }
+
+    private static void postMessageToSlack(String message) {
+        CheckInApplication.getApi().postCheckIn(new SlackApi.TextRequest(message)).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Response<Void> response) {
+                Timber.d("Slack post returned %d %s", response.code(), response.message());
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+
+            }
+        });
     }
 
 }
