@@ -3,4 +3,7 @@
     <string name="title_activity_maps">Map</string>
 
     <string name="google_app_id">@string/google_maps_key</string>
+
+    <string name="label_third">Third St.</string>
+    <string name="label_rogers">Rogers St.</string>
 </resources>

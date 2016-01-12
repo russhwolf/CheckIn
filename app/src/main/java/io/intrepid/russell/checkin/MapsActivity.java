@@ -23,7 +23,6 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import butterknife.Bind;
@@ -35,14 +34,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int REQUEST_LOCATION = 1;
     private static final int REQUEST_LOCATION_UPDATES = 2;
 
-    private static final String GEOFENCE_THIRD_ST = "Third_St.";
-    private static final String GEOFENCE_ROGERS_ST = "Rogers_St.";
-    private static final double LAT_THIRD_ST = 42.367023; // deg
-    private static final double LNG_THIRD_ST = -71.080052; // deg
-    private static final double LAT_ROGERS_ST = 42.366403; // deg
-    private static final double LNG_ROGERS_ST = -71.077766; // deg
-
-    private static final int GEOFENCE_RADIUS = 50; // meters
+    private static final int LOITERING_DELAY = 5000;
 
     private GoogleMap map;
 
@@ -159,11 +151,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         map = googleMap;
 
         // Add a marker in Sydney and move the camera
-        LatLng thirdSt = new LatLng(LAT_THIRD_ST, LNG_THIRD_ST);
-        map.addMarker(new MarkerOptions().position(thirdSt).title("Third St."));
-        LatLng rogersSt = new LatLng(LAT_ROGERS_ST, LNG_ROGERS_ST);
-        map.addMarker(new MarkerOptions().position(rogersSt).title("Rogers St."));
-        map.moveCamera(CameraUpdateFactory.newLatLng(thirdSt));
+        map.addMarker(new MarkerOptions().position(LocationData.THIRD_ST.latLng).title(LocationData.THIRD_ST.getLabel(getResources())));
+        map.addMarker(new MarkerOptions().position(LocationData.ROGERS_ST.latLng).title(LocationData.ROGERS_ST.getLabel(getResources())));
+        map.moveCamera(CameraUpdateFactory.newLatLng(LocationData.THIRD_ST.latLng));
         map.moveCamera(CameraUpdateFactory.zoomTo(16));
     }
 
@@ -200,18 +190,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return new GeofencingRequest.Builder()
                 .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL | GeofencingRequest.INITIAL_TRIGGER_ENTER)
                 .addGeofence(new Geofence.Builder()
-                        .setRequestId(GEOFENCE_THIRD_ST)
-                        .setCircularRegion(LAT_THIRD_ST, LNG_THIRD_ST, GEOFENCE_RADIUS)
+                        .setRequestId(LocationData.THIRD_ST.id)
+                        .setCircularRegion(LocationData.THIRD_ST.lat, LocationData.THIRD_ST.lng, LocationData.GEOFENCE_RADIUS)
                         .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
                         .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                        .setLoiteringDelay(5000)
+                        .setLoiteringDelay(LOITERING_DELAY)
                         .build())
                 .addGeofence(new Geofence.Builder()
-                        .setRequestId(GEOFENCE_ROGERS_ST)
-                        .setCircularRegion(LAT_ROGERS_ST, LNG_ROGERS_ST, GEOFENCE_RADIUS)
+                        .setRequestId(LocationData.ROGERS_ST.id)
+                        .setCircularRegion(LocationData.ROGERS_ST.lat, LocationData.ROGERS_ST.lng, LocationData.GEOFENCE_RADIUS)
                         .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
                         .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                        .setLoiteringDelay(5000)
+                        .setLoiteringDelay(LOITERING_DELAY)
                         .build())
                 .build();
     }
