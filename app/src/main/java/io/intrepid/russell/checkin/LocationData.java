@@ -30,4 +30,13 @@ public enum LocationData {
     public String getLabel(Resources res) {
         return res.getString(labelRes);
     }
+
+    public static LocationData forId(String id) {
+        for (LocationData data : LocationData.values()) {
+            if (data.id.equals(id)) {
+                return data;
+            }
+        }
+        return null;
+    }
 }

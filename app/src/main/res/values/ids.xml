@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item type="id" name="notification_service" />
-    <item type="id" name="notification_enter" />
-    <item type="id" name="notification_exit" />
-    <item type="id" name="notification_dwell" />
+    <item type="id" name="notification_slack" />
 </resources>

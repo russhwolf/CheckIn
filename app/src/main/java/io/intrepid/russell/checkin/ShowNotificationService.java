@@ -3,9 +3,11 @@ package io.intrepid.russell.checkin;
 import android.app.IntentService;
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.support.v7.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat.Action;
 
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingEvent;
@@ -17,10 +19,11 @@ import timber.log.Timber;
 public class ShowNotificationService extends IntentService {
     private static final String TAG = ShowNotificationService.class.getSimpleName();
 
-    private static final String ACTION_MESSAGE = "io.intrepid.russell.checkin.action.MESSAGE";
-    private static final String ACTION_GEOFENCE = "io.intrepid.russell.checkin.action.GEOFENCE";
+    private static final String ACTION_MESSAGE = "notification_message";
+    private static final String ACTION_GEOFENCE = "notification_geofence";
+    private static final String ACTION_SLACK = "notification_slack";
 
-    private static final String EXTRA_TEXT = "io.intrepid.russell.checkin.extra.TEXT";
+    private static final String EXTRA_TEXT = "text";
 
     public ShowNotificationService() {
         super(TAG);
@@ -41,6 +44,12 @@ public class ShowNotificationService extends IntentService {
                 .setAction(ACTION_GEOFENCE);
     }
 
+    public static Intent createSlackIntent(Context context, String text) {
+        return new Intent(context, ShowNotificationService.class)
+                .setAction(ACTION_SLACK)
+                .putExtra(EXTRA_TEXT, text);
+    }
+
     @Override
     protected void onHandleIntent(Intent intent) {
         if (intent != null) {
@@ -53,24 +62,30 @@ public class ShowNotificationService extends IntentService {
                     GeofencingEvent event = GeofencingEvent.fromIntent(intent);
                     processGeofencingEvent(event);
                     break;
+                case ACTION_SLACK:
+                    postMessageToSlack(intent.getStringExtra(EXTRA_TEXT));
+                    break;
             }
         }
     }
 
     private void showNotification(String text) {
-        showNotification(text, 0);
+        showNotification(text, 0, null);
     }
 
-    private void showNotification(String text, int id) {
+    private void showNotification(String text, int id, NotificationCompat.Action action) {
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        Notification notification = new NotificationCompat.Builder(this)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setTicker(text)
                 .setWhen(System.currentTimeMillis())
                 .setContentTitle(getText(R.string.app_name))
-                .setContentText(text)
-                .build();
+                .setContentText(text);
+        if (action != null) {
+            builder.addAction(action);
+        }
+        Notification notification = builder.build();
 
         notificationManager.notify(id, notification);
     }
@@ -78,17 +93,33 @@ public class ShowNotificationService extends IntentService {
     private void processGeofencingEvent(GeofencingEvent event) {
         if (event.getTriggeringGeofences().size() > 0) { // TODO Is this size ever not 1? Why?
             Geofence fence = event.getTriggeringGeofences().get(0);
+            LocationData data = LocationData.forId(fence.getRequestId());
+            if (data == null) {
+                return;
+            }
+
+            String placeName = data.getLabel(getResources());
+            String notificationMessage;
+            String slackMessage;
             switch (event.getGeofenceTransition()) {
-                case Geofence.GEOFENCE_TRANSITION_ENTER:
-                    showNotification("Entered " + fence.getRequestId(), R.id.notification_enter);
-                    break;
                 case Geofence.GEOFENCE_TRANSITION_EXIT:
-                    showNotification("Exited " + fence.getRequestId(), R.id.notification_exit);
+                    notificationMessage = getString(R.string.notification_exited);
+                    slackMessage = getString(R.string.slack_exited, placeName);
                     break;
                 case Geofence.GEOFENCE_TRANSITION_DWELL:
-                    showNotification("Dwelling at " + fence.getRequestId(), R.id.notification_dwell);
+                    notificationMessage = getString(R.string.notification_dwelling);
+                    slackMessage = getString(R.string.slack_dwelling, placeName);
                     break;
+                default:
+                    return;
             }
+            Action action = new Action(R.mipmap.ic_launcher, getString(R.string.slack_action),
+                    PendingIntent.getService(
+                            this,
+                            0,
+                            createSlackIntent(this, slackMessage),
+                            0));
+            showNotification(notificationMessage, R.id.notification_slack, action);
         }
     }
 
