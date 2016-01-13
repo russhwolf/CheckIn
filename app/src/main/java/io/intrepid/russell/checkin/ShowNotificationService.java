@@ -25,18 +25,16 @@ public class ShowNotificationService extends IntentService {
 
     private static final String EXTRA_TEXT = "text";
 
+    private NotificationManager notificationManager;
+
     public ShowNotificationService() {
         super(TAG);
     }
 
-    public static void showNotification(Context context, String text) {
-        context.startService(createNotificationIntent(context, text));
-    }
-
-    public static Intent createNotificationIntent(Context context, String text) {
-        return new Intent(context, ShowNotificationService.class)
-                .setAction(ACTION_MESSAGE)
-                .putExtra(EXTRA_TEXT, text);
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
     }
 
     public static Intent createGeofenceIntent(Context context) {
@@ -64,6 +62,7 @@ public class ShowNotificationService extends IntentService {
                     break;
                 case ACTION_SLACK:
                     postMessageToSlack(intent.getStringExtra(EXTRA_TEXT));
+                    notificationManager.cancel(R.id.notification_slack);
                     break;
             }
         }
@@ -74,8 +73,6 @@ public class ShowNotificationService extends IntentService {
     }
 
     private void showNotification(String text, int id, NotificationCompat.Action action) {
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setTicker(text)
@@ -103,11 +100,11 @@ public class ShowNotificationService extends IntentService {
             String slackMessage;
             switch (event.getGeofenceTransition()) {
                 case Geofence.GEOFENCE_TRANSITION_EXIT:
-                    notificationMessage = getString(R.string.notification_exited);
+                    notificationMessage = getString(R.string.notification_exited, placeName);
                     slackMessage = getString(R.string.slack_exited, placeName);
                     break;
                 case Geofence.GEOFENCE_TRANSITION_DWELL:
-                    notificationMessage = getString(R.string.notification_dwelling);
+                    notificationMessage = getString(R.string.notification_dwelling, placeName);
                     slackMessage = getString(R.string.slack_dwelling, placeName);
                     break;
                 default:

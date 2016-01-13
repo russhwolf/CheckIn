@@ -70,7 +70,6 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
 
     private GoogleApiClient googleApiClient;
 
-    private final int NOTIFICATION_ID = R.id.notification_service;
     private NotificationManager notificationManager;
 
     @Override
@@ -223,7 +222,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                 .build();
         notification.flags |= NotificationCompat.FLAG_NO_CLEAR;
 
-        notificationManager.notify(NOTIFICATION_ID, notification);
+        notificationManager.notify(R.id.notification_service, notification);
     }
 
     private void requestPermission(String[] names, int requestCode) {

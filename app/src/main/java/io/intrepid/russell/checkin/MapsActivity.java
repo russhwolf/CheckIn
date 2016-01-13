@@ -114,7 +114,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         switch (requestCode) {
             case REQUEST_LOCATION:
-                if (grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                if (grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                        && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
                     showMyLocation(true);
                 } else {
                     showMyLocation(false);
@@ -122,7 +123,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 break;
             case REQUEST_LOCATION_UPDATES:
             case REQUEST_GEOFENCING:
-                if (grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+                if (grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                        && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
                     LocalBroadcastManager.getInstance(this).sendBroadcast(
                             new Intent(CheckInService.ACTION_PERMISSION_RESULT)
                                     .putExtra(CheckInService.EXTRA_PERMISSION_REQUEST_CODE, requestCode));
