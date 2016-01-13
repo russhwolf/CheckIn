@@ -81,7 +81,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         filter.addAction(ACTION_REQUEST_PERMISSION);
         LocalBroadcastManager broadcastManager = LocalBroadcastManager.getInstance(this);
         broadcastManager.registerReceiver(receiver, filter);
-        broadcastManager.sendBroadcast(new Intent(CheckInService.ACTION_PING_REQUEST));
+        Timber.d("Sending ping request to service");
+        CheckInService.sendPingBroadcast(this);
     }
 
     @Override

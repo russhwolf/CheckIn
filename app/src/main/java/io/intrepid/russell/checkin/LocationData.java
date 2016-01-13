@@ -8,7 +8,7 @@ import com.google.android.gms.maps.model.LatLng;
 public enum LocationData {
 
     THIRD_ST(42.367023, -71.080052, R.string.label_third, "Third_St"),
-    ROGERS_ST(42.366403, -71.077766, R.string.label_rogers, "Rogers_St"),;
+    ROGERS_ST(42.366403, -71.077766, R.string.label_rogers, "Rogers_St");
 
     public static final int GEOFENCE_RADIUS = 50; // m
 

@@ -56,6 +56,10 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
         }
     };
 
+    public static void sendPingBroadcast(Context context) {
+        LocalBroadcastManager.getInstance(context).sendBroadcast(new Intent(ACTION_PING_REQUEST));
+    }
+
     public static final String ACTION_PING_REQUEST = "checkin_service_ping_request";
     public static final String ACTION_PING_RESPONSE = "checkin_service_ping_response";
 
@@ -108,7 +112,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
 
     @Override
     public IBinder onBind(Intent intent) {
-        return new Binder();
+        return new Binder(); // TODO Does this need to not always be new?
     }
 
     @Override
