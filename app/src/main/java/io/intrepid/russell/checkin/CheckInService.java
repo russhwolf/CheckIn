@@ -157,7 +157,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                         this,
                         0,
                         ShowNotificationService.createGeofenceIntent(this),
-                        0)
+                        PendingIntent.FLAG_CANCEL_CURRENT)
         ).setResultCallback(new ResultCallback<Status>() {
             @Override
             public void onResult(@NonNull Status status) {

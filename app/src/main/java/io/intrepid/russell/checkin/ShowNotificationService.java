@@ -24,7 +24,8 @@ public class ShowNotificationService extends IntentService {
     private static final String ACTION_GEOFENCE = "notification_geofence";
     private static final String ACTION_SLACK = "notification_slack";
 
-    private static final String EXTRA_TEXT = "text";
+    private static final String EXTRA_NOTIFICATION_MESSAGE = "notification_message";
+    private static final String EXTRA_SLACK_MESSAGE = "slack_message";
 
     private NotificationManager notificationManager;
 
@@ -41,7 +42,7 @@ public class ShowNotificationService extends IntentService {
     public static Intent createMessageIntent(Context context, String text) {
         return new Intent(context, ShowNotificationService.class)
                 .setAction(ACTION_MESSAGE)
-                .putExtra(EXTRA_TEXT, text);
+                .putExtra(EXTRA_NOTIFICATION_MESSAGE, text);
     }
 
     public static Intent createGeofenceIntent(Context context) {
@@ -49,10 +50,11 @@ public class ShowNotificationService extends IntentService {
                 .setAction(ACTION_GEOFENCE);
     }
 
-    public static Intent createSlackIntent(Context context, String text) {
+    public static Intent createSlackIntent(Context context, String slackMessage, String notificationMessage) {
         return new Intent(context, ShowNotificationService.class)
                 .setAction(ACTION_SLACK)
-                .putExtra(EXTRA_TEXT, text);
+                .putExtra(EXTRA_SLACK_MESSAGE, slackMessage)
+                .putExtra(EXTRA_NOTIFICATION_MESSAGE, notificationMessage);
     }
 
     @Override
@@ -60,7 +62,7 @@ public class ShowNotificationService extends IntentService {
         if (intent != null) {
             switch (intent.getAction()) {
                 case ACTION_MESSAGE:
-                    showNotification(intent.getStringExtra(EXTRA_TEXT));
+                    showNotification(intent.getStringExtra(EXTRA_NOTIFICATION_MESSAGE));
                     break;
 
                 case ACTION_GEOFENCE:
@@ -69,7 +71,8 @@ public class ShowNotificationService extends IntentService {
                     break;
 
                 case ACTION_SLACK:
-                    postMessageToSlack(intent.getStringExtra(EXTRA_TEXT));
+                    postMessageToSlack(intent.getStringExtra(EXTRA_SLACK_MESSAGE));
+                    showNotification(intent.getStringExtra(EXTRA_NOTIFICATION_MESSAGE));
                     break;
             }
         }
@@ -135,13 +138,14 @@ public class ShowNotificationService extends IntentService {
                 PendingIntent.getService(
                         this,
                         0,
-                        createSlackIntent(this, slackMessage),
-                        0));
+                        createSlackIntent(this, slackMessage, notificationMessage),
+                        PendingIntent.FLAG_CANCEL_CURRENT));
 
         showNotification(notificationMessage, action);
     }
 
     private static void postMessageToSlack(String message) {
+        Timber.d("Posting to slack: message='"+message+"'");
         // Note that this is called from onHandleIntent(), which is already off the main UI thread,
         // so we can use execute() instead of enqueue here.
         try {
