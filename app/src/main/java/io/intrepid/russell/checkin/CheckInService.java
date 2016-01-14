@@ -1,7 +1,6 @@
 package io.intrepid.russell.checkin;
 
 import android.Manifest;
-import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -11,12 +10,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -52,6 +49,9 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                             break;
                     }
                     break;
+                case ACTION_STOP_SERVICE:
+                    stopSelf();
+                    break;
             }
         }
     };
@@ -66,6 +66,8 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
     public static final String ACTION_PERMISSION_RESULT = "checkin_service_permission_result";
     public static final String EXTRA_PERMISSION_REQUEST_CODE = "checkin_service_permission_request_code";
 
+    public static final String ACTION_STOP_SERVICE = "checkin_service_stop";
+
     private static final int LOITERING_DELAY = 5000;
 
     private GoogleApiClient googleApiClient;
@@ -77,11 +79,12 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_PING_REQUEST);
         filter.addAction(ACTION_PERMISSION_RESULT);
+        filter.addAction(ACTION_STOP_SERVICE);
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver, filter);
 
         notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        showNotification();
+        startService(ShowNotificationService.createMessageIntent(this, getString(R.string.service_running)));
 
         googleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(LocationServices.API)
@@ -111,7 +114,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
 
     @Override
     public IBinder onBind(Intent intent) {
-        return new Binder(); // TODO Does this need to not always be new?
+        return null;
     }
 
     @Override
@@ -200,29 +203,6 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
         } else {
             Timber.v("Null location");
         }
-    }
-
-    /**
-     * Show a notification while this service is running.
-     */
-    private void showNotification() {
-        CharSequence text = getString(R.string.service_running);
-
-        // The PendingIntent to launch our activity if the user selects this notification
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MapsActivity.class), 0);
-
-        Notification notification = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setTicker(text)
-                .setWhen(System.currentTimeMillis())
-                .setContentTitle(getText(R.string.app_name))
-                .setContentText(text)
-                .setContentIntent(contentIntent)
-                .build();
-        notification.flags |= NotificationCompat.FLAG_NO_CLEAR;
-
-        notificationManager.notify(R.id.notification_service, notification);
     }
 
     private void requestPermission(String[] names, int requestCode) {
