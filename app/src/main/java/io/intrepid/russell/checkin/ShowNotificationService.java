@@ -83,7 +83,7 @@ public class ShowNotificationService extends IntentService {
                 new Intent(this, MapsActivity.class), 0);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_location)
                 .setTicker(text)
                 .setWhen(System.currentTimeMillis())
                 .setContentTitle(getText(R.string.app_name))
@@ -126,7 +126,7 @@ public class ShowNotificationService extends IntentService {
                 return;
         }
 
-        Action action = new Action(R.mipmap.ic_launcher, getString(R.string.action_slack),
+        Action action = new Action(R.drawable.ic_message, getString(R.string.action_slack),
                 PendingIntent.getService(
                         this,
                         0,
