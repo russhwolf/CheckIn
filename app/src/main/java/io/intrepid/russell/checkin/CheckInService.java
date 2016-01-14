@@ -184,12 +184,12 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
 
     @Override
     public void onConnectionSuspended(int i) {
-
+        Timber.w("Connection %d suspended", i);
     }
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
+        Timber.e("Connection failed with error %d %s", connectionResult.getErrorCode(), connectionResult.getErrorMessage());
     }
 
     @Override
