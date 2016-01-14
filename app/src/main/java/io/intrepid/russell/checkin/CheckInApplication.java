@@ -30,10 +30,13 @@ public class CheckInApplication extends Application {
                     Timber.v(message);
                 }
             };
+
             Level level = BuildConfig.DEBUG ? Level.BODY : HttpLoggingInterceptor.Level.BASIC;
+
             OkHttpClient client = new OkHttpClient.Builder()
                     .addInterceptor(new HttpLoggingInterceptor(logger).setLevel(level))
                     .build();
+
             slackApi = new Retrofit.Builder()
                     .baseUrl(SlackApi.BASE_URL)
                     .addConverterFactory(GsonConverterFactory.create())
@@ -41,6 +44,7 @@ public class CheckInApplication extends Application {
                     .build()
                     .create(SlackApi.class);
         }
+
         return slackApi;
     }
 }

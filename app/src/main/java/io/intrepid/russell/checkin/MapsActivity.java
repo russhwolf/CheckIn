@@ -43,6 +43,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Timber.d("Ping response received");
                     toggle.setChecked(true);
                     break;
+
                 case ACTION_REQUEST_PERMISSION:
                     String[] names = intent.getStringArrayExtra(EXTRA_PERMISSION_NAMES);
                     int requestCode = intent.getIntExtra(EXTRA_PERMISSION_REQUEST_CODE, -1);
@@ -121,6 +122,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     showMyLocation(false);
                 }
                 break;
+
             case REQUEST_LOCATION_UPDATES:
             case REQUEST_GEOFENCING:
                 if (grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED
