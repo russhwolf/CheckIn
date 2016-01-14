@@ -18,7 +18,7 @@
 
     <string name="slack_entered">I arrived at %s</string>
     <string name="slack_dwelling">I\'m at %s</string>
-    <string name="slack_exited">I left at %s</string>
+    <string name="slack_exited">I left %s</string>
 
     <string name="action_stop_service">Stop Location Service</string>
     <string name="action_slack">Post to Slack</string>
