@@ -38,6 +38,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                     Timber.d("Ping request received");
                     LocalBroadcastManager.getInstance(CheckInService.this).sendBroadcast(new Intent(ACTION_PING_RESPONSE));
                     break;
+
                 case ACTION_PERMISSION_RESULT:
                     int requestCode = intent.getIntExtra(EXTRA_PERMISSION_REQUEST_CODE, -1);
                     switch (requestCode) {
@@ -49,6 +50,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                             break;
                     }
                     break;
+
                 case ACTION_STOP_SERVICE:
                     stopSelf();
                     break;
@@ -130,6 +132,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                     Manifest.permission.ACCESS_COARSE_LOCATION}, MapsActivity.REQUEST_LOCATION_UPDATES);
             return;
         }
+
         LocationServices.FusedLocationApi.requestLocationUpdates(
                 googleApiClient,
                 new LocationRequest()
@@ -146,6 +149,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                     Manifest.permission.ACCESS_COARSE_LOCATION}, MapsActivity.REQUEST_GEOFENCING);
             return;
         }
+
         LocationServices.GeofencingApi.addGeofences(
                 googleApiClient,
                 getGeofencingRequest(),
@@ -163,21 +167,20 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
     }
 
     private GeofencingRequest getGeofencingRequest() {
+        Geofence.Builder fenceBuilder = new Geofence.Builder()
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                .setLoiteringDelay(LOITERING_DELAY);
+
         return new GeofencingRequest.Builder()
                 .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL | GeofencingRequest.INITIAL_TRIGGER_ENTER)
-                .addGeofence(new Geofence.Builder()
+                .addGeofence(fenceBuilder
                         .setRequestId(LocationData.THIRD_ST.id)
                         .setCircularRegion(LocationData.THIRD_ST.lat, LocationData.THIRD_ST.lng, LocationData.GEOFENCE_RADIUS)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
-                        .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                        .setLoiteringDelay(LOITERING_DELAY)
                         .build())
-                .addGeofence(new Geofence.Builder()
+                .addGeofence(fenceBuilder
                         .setRequestId(LocationData.ROGERS_ST.id)
                         .setCircularRegion(LocationData.ROGERS_ST.lat, LocationData.ROGERS_ST.lng, LocationData.GEOFENCE_RADIUS)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
-                        .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                        .setLoiteringDelay(LOITERING_DELAY)
                         .build())
                 .build();
     }

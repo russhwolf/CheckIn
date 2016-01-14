@@ -62,10 +62,12 @@ public class ShowNotificationService extends IntentService {
                 case ACTION_MESSAGE:
                     showNotification(intent.getStringExtra(EXTRA_TEXT));
                     break;
+
                 case ACTION_GEOFENCE:
                     GeofencingEvent event = GeofencingEvent.fromIntent(intent);
                     processGeofencingEvent(event);
                     break;
+
                 case ACTION_SLACK:
                     postMessageToSlack(intent.getStringExtra(EXTRA_TEXT));
                     break;
@@ -104,6 +106,7 @@ public class ShowNotificationService extends IntentService {
         if (event.getTriggeringGeofences().size() == 0) {
             return;
         }
+
         Geofence fence = event.getTriggeringGeofences().get(0);
         LocationData data = LocationData.forId(fence.getRequestId());
         if (data == null) {
@@ -118,10 +121,12 @@ public class ShowNotificationService extends IntentService {
                 notificationMessage = getString(R.string.notification_exited, placeName);
                 slackMessage = getString(R.string.slack_exited, placeName);
                 break;
+
             case Geofence.GEOFENCE_TRANSITION_DWELL:
                 notificationMessage = getString(R.string.notification_dwelling, placeName);
                 slackMessage = getString(R.string.slack_dwelling, placeName);
                 break;
+
             default:
                 return;
         }
