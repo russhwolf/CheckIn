@@ -1,7 +1,6 @@
 package io.intrepid.russell.checkin;
 
 import android.Manifest;
-import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -11,12 +10,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -41,6 +38,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                     Timber.d("Ping request received");
                     LocalBroadcastManager.getInstance(CheckInService.this).sendBroadcast(new Intent(ACTION_PING_RESPONSE));
                     break;
+
                 case ACTION_PERMISSION_RESULT:
                     int requestCode = intent.getIntExtra(EXTRA_PERMISSION_REQUEST_CODE, -1);
                     switch (requestCode) {
@@ -51,6 +49,10 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                             requestGeofencing();
                             break;
                     }
+                    break;
+
+                case ACTION_STOP_SERVICE:
+                    stopSelf();
                     break;
             }
         }
@@ -66,6 +68,8 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
     public static final String ACTION_PERMISSION_RESULT = "checkin_service_permission_result";
     public static final String EXTRA_PERMISSION_REQUEST_CODE = "checkin_service_permission_request_code";
 
+    public static final String ACTION_STOP_SERVICE = "checkin_service_stop";
+
     private static final int LOITERING_DELAY = 5000;
 
     private GoogleApiClient googleApiClient;
@@ -77,11 +81,12 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_PING_REQUEST);
         filter.addAction(ACTION_PERMISSION_RESULT);
+        filter.addAction(ACTION_STOP_SERVICE);
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver, filter);
 
         notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        showNotification();
+        startService(ShowNotificationService.createMessageIntent(this, getString(R.string.service_running)));
 
         googleApiClient = new GoogleApiClient.Builder(this)
                 .addApi(LocationServices.API)
@@ -111,7 +116,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
 
     @Override
     public IBinder onBind(Intent intent) {
-        return new Binder(); // TODO Does this need to not always be new?
+        return null;
     }
 
     @Override
@@ -127,6 +132,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                     Manifest.permission.ACCESS_COARSE_LOCATION}, MapsActivity.REQUEST_LOCATION_UPDATES);
             return;
         }
+
         LocationServices.FusedLocationApi.requestLocationUpdates(
                 googleApiClient,
                 new LocationRequest()
@@ -143,6 +149,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                     Manifest.permission.ACCESS_COARSE_LOCATION}, MapsActivity.REQUEST_GEOFENCING);
             return;
         }
+
         LocationServices.GeofencingApi.addGeofences(
                 googleApiClient,
                 getGeofencingRequest(),
@@ -150,7 +157,7 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
                         this,
                         0,
                         ShowNotificationService.createGeofenceIntent(this),
-                        0)
+                        PendingIntent.FLAG_CANCEL_CURRENT)
         ).setResultCallback(new ResultCallback<Status>() {
             @Override
             public void onResult(@NonNull Status status) {
@@ -160,33 +167,32 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
     }
 
     private GeofencingRequest getGeofencingRequest() {
+        Geofence.Builder fenceBuilder = new Geofence.Builder()
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                .setLoiteringDelay(LOITERING_DELAY);
+
         return new GeofencingRequest.Builder()
                 .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_DWELL | GeofencingRequest.INITIAL_TRIGGER_ENTER)
-                .addGeofence(new Geofence.Builder()
+                .addGeofence(fenceBuilder
                         .setRequestId(LocationData.THIRD_ST.id)
                         .setCircularRegion(LocationData.THIRD_ST.lat, LocationData.THIRD_ST.lng, LocationData.GEOFENCE_RADIUS)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
-                        .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                        .setLoiteringDelay(LOITERING_DELAY)
                         .build())
-                .addGeofence(new Geofence.Builder()
+                .addGeofence(fenceBuilder
                         .setRequestId(LocationData.ROGERS_ST.id)
                         .setCircularRegion(LocationData.ROGERS_ST.lat, LocationData.ROGERS_ST.lng, LocationData.GEOFENCE_RADIUS)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
-                        .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                        .setLoiteringDelay(LOITERING_DELAY)
                         .build())
                 .build();
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-
+        Timber.w("Connection %d suspended", i);
     }
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
+        Timber.e("Connection failed with error %d %s", connectionResult.getErrorCode(), connectionResult.getErrorMessage());
     }
 
     @Override
@@ -200,29 +206,6 @@ public class CheckInService extends Service implements GoogleApiClient.Connectio
         } else {
             Timber.v("Null location");
         }
-    }
-
-    /**
-     * Show a notification while this service is running.
-     */
-    private void showNotification() {
-        CharSequence text = getString(R.string.service_running);
-
-        // The PendingIntent to launch our activity if the user selects this notification
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, MapsActivity.class), 0);
-
-        Notification notification = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setTicker(text)
-                .setWhen(System.currentTimeMillis())
-                .setContentTitle(getText(R.string.app_name))
-                .setContentText(text)
-                .setContentIntent(contentIntent)
-                .build();
-        notification.flags |= NotificationCompat.FLAG_NO_CLEAR;
-
-        notificationManager.notify(R.id.notification_service, notification);
     }
 
     private void requestPermission(String[] names, int requestCode) {

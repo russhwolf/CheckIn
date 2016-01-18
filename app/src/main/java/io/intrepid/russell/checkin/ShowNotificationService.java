@@ -12,7 +12,8 @@ import android.support.v4.app.NotificationCompat.Action;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingEvent;
 
-import retrofit2.Callback;
+import java.io.IOException;
+
 import retrofit2.Response;
 import timber.log.Timber;
 
@@ -23,7 +24,8 @@ public class ShowNotificationService extends IntentService {
     private static final String ACTION_GEOFENCE = "notification_geofence";
     private static final String ACTION_SLACK = "notification_slack";
 
-    private static final String EXTRA_TEXT = "text";
+    private static final String EXTRA_NOTIFICATION_MESSAGE = "notification_message";
+    private static final String EXTRA_SLACK_MESSAGE = "slack_message";
 
     private NotificationManager notificationManager;
 
@@ -37,15 +39,22 @@ public class ShowNotificationService extends IntentService {
         notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
     }
 
+    public static Intent createMessageIntent(Context context, String text) {
+        return new Intent(context, ShowNotificationService.class)
+                .setAction(ACTION_MESSAGE)
+                .putExtra(EXTRA_NOTIFICATION_MESSAGE, text);
+    }
+
     public static Intent createGeofenceIntent(Context context) {
         return new Intent(context, ShowNotificationService.class)
                 .setAction(ACTION_GEOFENCE);
     }
 
-    public static Intent createSlackIntent(Context context, String text) {
+    public static Intent createSlackIntent(Context context, String slackMessage, String notificationMessage) {
         return new Intent(context, ShowNotificationService.class)
                 .setAction(ACTION_SLACK)
-                .putExtra(EXTRA_TEXT, text);
+                .putExtra(EXTRA_SLACK_MESSAGE, slackMessage)
+                .putExtra(EXTRA_NOTIFICATION_MESSAGE, notificationMessage);
     }
 
     @Override
@@ -53,85 +62,98 @@ public class ShowNotificationService extends IntentService {
         if (intent != null) {
             switch (intent.getAction()) {
                 case ACTION_MESSAGE:
-                    String text = intent.getStringExtra(EXTRA_TEXT);
-                    showNotification(text);
+                    showNotification(intent.getStringExtra(EXTRA_NOTIFICATION_MESSAGE));
                     break;
+
                 case ACTION_GEOFENCE:
                     GeofencingEvent event = GeofencingEvent.fromIntent(intent);
                     processGeofencingEvent(event);
                     break;
+
                 case ACTION_SLACK:
-                    postMessageToSlack(intent.getStringExtra(EXTRA_TEXT));
-                    notificationManager.cancel(R.id.notification_slack);
+                    postMessageToSlack(intent.getStringExtra(EXTRA_SLACK_MESSAGE));
+                    showNotification(intent.getStringExtra(EXTRA_NOTIFICATION_MESSAGE));
                     break;
             }
         }
     }
 
     private void showNotification(String text) {
-        showNotification(text, 0, null);
+        showNotification(text, null);
     }
 
-    private void showNotification(String text, int id, NotificationCompat.Action action) {
+    private void showNotification(String text, Action action) {
+        // The PendingIntent to launch our activity if the user selects this notification
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
+                new Intent(this, MapsActivity.class), 0);
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_location)
                 .setTicker(text)
                 .setWhen(System.currentTimeMillis())
                 .setContentTitle(getText(R.string.app_name))
-                .setContentText(text);
+                .setContentText(text)
+                .setContentIntent(contentIntent);
+
         if (action != null) {
             builder.addAction(action);
         }
-        Notification notification = builder.build();
 
-        notificationManager.notify(id, notification);
+        Notification notification = builder.build();
+        notification.flags |= NotificationCompat.FLAG_NO_CLEAR;
+
+        notificationManager.notify(R.id.notification, notification);
     }
 
     private void processGeofencingEvent(GeofencingEvent event) {
-        if (event.getTriggeringGeofences().size() > 0) { // TODO Is this size ever not 1? Why?
-            Geofence fence = event.getTriggeringGeofences().get(0);
-            LocationData data = LocationData.forId(fence.getRequestId());
-            if (data == null) {
-                return;
-            }
-
-            String placeName = data.getLabel(getResources());
-            String notificationMessage;
-            String slackMessage;
-            switch (event.getGeofenceTransition()) {
-                case Geofence.GEOFENCE_TRANSITION_EXIT:
-                    notificationMessage = getString(R.string.notification_exited, placeName);
-                    slackMessage = getString(R.string.slack_exited, placeName);
-                    break;
-                case Geofence.GEOFENCE_TRANSITION_DWELL:
-                    notificationMessage = getString(R.string.notification_dwelling, placeName);
-                    slackMessage = getString(R.string.slack_dwelling, placeName);
-                    break;
-                default:
-                    return;
-            }
-            Action action = new Action(R.mipmap.ic_launcher, getString(R.string.slack_action),
-                    PendingIntent.getService(
-                            this,
-                            0,
-                            createSlackIntent(this, slackMessage),
-                            0));
-            showNotification(notificationMessage, R.id.notification_slack, action);
+        if (event.getTriggeringGeofences().size() == 0) {
+            return;
         }
+
+        Geofence fence = event.getTriggeringGeofences().get(0);
+        LocationData data = LocationData.forId(fence.getRequestId());
+        if (data == null) {
+            return;
+        }
+
+        String placeName = data.getLabel(getResources());
+        String notificationMessage;
+        String slackMessage;
+        switch (event.getGeofenceTransition()) {
+            case Geofence.GEOFENCE_TRANSITION_EXIT:
+                notificationMessage = getString(R.string.notification_exited, placeName);
+                slackMessage = getString(R.string.slack_exited, placeName);
+                break;
+
+            case Geofence.GEOFENCE_TRANSITION_DWELL:
+                notificationMessage = getString(R.string.notification_dwelling, placeName);
+                slackMessage = getString(R.string.slack_dwelling, placeName);
+                break;
+
+            default:
+                return;
+        }
+
+        Action action = new Action(R.drawable.ic_message, getString(R.string.action_slack),
+                PendingIntent.getService(
+                        this,
+                        0,
+                        createSlackIntent(this, slackMessage, notificationMessage),
+                        PendingIntent.FLAG_CANCEL_CURRENT));
+
+        showNotification(notificationMessage, action);
     }
 
     private static void postMessageToSlack(String message) {
-        CheckInApplication.getApi().postCheckIn(new SlackApi.TextRequest(message)).enqueue(new Callback<Void>() {
-            @Override
-            public void onResponse(Response<Void> response) {
-                Timber.d("Slack post returned %d %s", response.code(), response.message());
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-
-            }
-        });
+        Timber.d("Posting to slack: message='"+message+"'");
+        // Note that this is called from onHandleIntent(), which is already off the main UI thread,
+        // so we can use execute() instead of enqueue here.
+        try {
+            Response<Void> response = CheckInApplication.getApi().postCheckIn(new SlackApi.TextRequest(message)).execute();
+            Timber.d("Slack post returned %d %s", response.code(), response.message());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }
